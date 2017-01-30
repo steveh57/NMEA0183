@@ -27,12 +27,11 @@
 #include "NMEA0183Handlers.h"
 #include "BoatData.h"
 
-#include <due_can.h>  // https://github.com/collin80/due_can
-#include <NMEA2000_due.h>
-tNMEA2000_due NMEA2000;
+#include <NMEA2000_CAN.h>
 
 #define NMEA0183SourceGPSCompass 3
 #define NMEA0183SourceGPS 1
+
 
 tBoatData BoatData;
 
@@ -42,7 +41,7 @@ tNMEA0183 NMEA0183_3;
 void setup() {
 
   // Setup NMEA2000 system
-  Serial.begin(115200);
+  PC_STREAM.begin(115200);
   NMEA2000.SetProductInformation("00000008", // Manufacturer's Model serial code
                                  107, // Manufacturer's product code
                                  "NMEA0183 -> N2k -> PC",  // Manufacturer's Model ID
@@ -56,17 +55,19 @@ void setup() {
                                 2046 // Just choosen free from code list on http://www.nmea.org/Assets/20121020%20nmea%202000%20registration%20list.pdf                               
                                );
 
-  // NMEA2000.SetForwardType(tNMEA2000::fwdt_Text); // Show in clear text. Leave uncommented for default Actisense format.
-  NMEA2000.SetForwardSystemMessages(true);
+  NMEA2000.SetForwardType(tNMEA2000::fwdt_Text); // Show in clear text. Leave uncommented for default Actisense format.
+  NMEA2000.SetForwardStream(&PC_STREAM);  NMEA2000.SetForwardSystemMessages(true);
   NMEA2000.SetMode(tNMEA2000::N2km_ListenAndNode,25);
-  //NMEA2000.EnableForward(false);
+  NMEA2000.EnableForward(true);
   NMEA2000.Open();
 
   // Setup NMEA0183 ports and handlers
   InitNMEA0183Handlers(&NMEA2000, &BoatData);
+  DebugNMEA0183Handlers(&PC_STREAM);
   NMEA0183_3.SetMsgHandler(HandleNMEA0183Msg);
 
-  NMEA0183_3.Begin(&Serial3,NMEA0183SourceGPSCompass, 19200);
+  NMEA0183_3.Begin(&NMEA0183_STREAM,NMEA0183SourceGPSCompass, 38400);
+
 }
 
 void loop() {
@@ -83,7 +84,7 @@ void SendSystemTime() {
   tN2kMsg N2kMsg;
 
   if ( (TimeUpdated+TimeUpdatePeriod<millis()) && BoatData.DaysSince1970>0 ) {
-    SetN2kPGNSystemTime(N2kMsg, 0, BoatData.DaysSince1970, BoatData.GPSTime);
+    SetN2kSystemTime(N2kMsg, 0, BoatData.DaysSince1970, BoatData.GPSTime);
     TimeUpdated=millis();
     NMEA2000.SendMsg(N2kMsg);
   }

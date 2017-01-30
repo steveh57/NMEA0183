@@ -36,10 +36,18 @@ tNMEA0183::tNMEA0183()
 
 //*****************************************************************************
 void tNMEA0183::Begin(HardwareSerial *_port, uint8_t _SourceID, unsigned long _baud) {
+	porttype = port_hardware;
   SourceID=_SourceID;
   port=_port;
   port->begin(_baud);
 }
+
+void tNMEA0183::Begin(usb_serial_class *_port, uint8_t _SourceID, unsigned long _baud) {
+	  porttype = port_usb;
+	  SourceID=_SourceID;
+	  usb =_port;
+	  usb->begin(_baud);
+	}
 
 //*****************************************************************************
 void tNMEA0183::ParseMessages() {
@@ -49,13 +57,63 @@ void tNMEA0183::ParseMessages() {
       if (MsgHandler!=0) MsgHandler(NMEA0183Msg);
     }
 }
+/*Kluge to support USB serial as a NMEA0183 input/output
+ *
+ * Unfortunately the Stream base class for hardware serial and usb serial does not
+ * define AvailableForWriteas a virtual function, so we have to do this to get round
+ * the problem.  There's probably a more elegant way to do this but hey.
+ *
+ */
+int tNMEA0183::serial_available () {
+	switch (porttype) {
+	case port_hardware:
+		return port->available();
+	case port_usb:
+		return usb->available();
+	default:
+		return 0;
+	}
+}
+int tNMEA0183::serial_read () {
+	switch (porttype) {
+	case port_hardware:
+		return port->read();
+	case port_usb:
+		return usb->read();
+	default:
+		return 0;
+	}
+}
+
+int tNMEA0183::serial_availableForWrite() {
+	switch (porttype) {
+	case port_hardware:
+		return port->availableForWrite();
+	case port_usb:
+		return usb->availableForWrite();
+	default:
+		return 0;
+	}
+}
+
+size_t tNMEA0183::serial_write(int n) {
+	switch (porttype) {
+	case port_hardware:
+		return port->write(n);
+	case port_usb:
+		return usb->write(n);
+	default:
+		return 0;
+	}
+}
+
 
 //*****************************************************************************
 bool tNMEA0183::GetMessage(tNMEA0183Msg &NMEA0183Msg) {
   bool result=false;
 
-  while (port->available() > 0 && !result) {
-    int NewByte=port->read();
+  while (serial_available() > 0 && !result) {
+    int NewByte=serial_read();
       if (NewByte=='$' || NewByte=='!') { // Message start
         MsgInStarted=true;
         MsgInPos=0;
@@ -100,8 +158,8 @@ int tNMEA0183::nextOutIdx(int idx)
 void tNMEA0183::kick() {
   if (MsgOutBuf[MsgOutIdx][0] != '\0') {
     MsgOutStarted = true;
-    while(port->availableForWrite() > 0) {
-      port->write(MsgOutBuf[MsgOutIdx][MsgOutPos]);
+    while(serial_availableForWrite() > 0) {
+      serial_write(MsgOutBuf[MsgOutIdx][MsgOutPos]);
       MsgOutPos++;
       if (MsgOutBuf[MsgOutIdx][MsgOutPos] == '\0') {
         // Done with this message - clear it and prepare for next

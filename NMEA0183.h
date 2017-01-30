@@ -29,10 +29,14 @@ Author: Timo Lappalainen
 #define MAX_NMEA0183_MSG_BUF_LEN 81  // Accroding to NMEA 3.01. Can not contain multi message as in AIS
 #define MAX_OUT_BUF 3
 
+enum NMEA0183_PortType {port_hardware, port_usb};
+
 class tNMEA0183
 {
   protected:
+	NMEA0183_PortType porttype;
     HardwareSerial *port;
+    usb_serial_class *usb;
     int MsgCheckSumStartPos;
     char MsgInBuf[MAX_NMEA0183_MSG_BUF_LEN];
     char MsgOutBuf[MAX_OUT_BUF][MAX_NMEA0183_MSG_BUF_LEN];
@@ -50,11 +54,20 @@ class tNMEA0183
   public:
     tNMEA0183();
     void Begin(HardwareSerial *_port, uint8_t _SourceID=0, unsigned long _baud=4800);
+    void Begin(usb_serial_class *_port, uint8_t _SourceID=0, unsigned long _baud=115200);
     void SetMsgHandler(void (*_MsgHandler)(const tNMEA0183Msg &NMEA0183Msg)) {MsgHandler=_MsgHandler;}
     void ParseMessages();
     bool GetMessage(tNMEA0183Msg &NMEA0183Msg);
     bool SendMessage(const char *buf);
     void kick();
+  private:
+    int serial_available ();
+    int serial_read ();
+    int serial_availableForWrite();
+    size_t serial_write(int n);
+
+
+
 };
 
 #endif
