@@ -24,7 +24,7 @@ Author: Timo Lappalainen
 #include <NMEA0183.h>
 
 tNMEA0183::tNMEA0183()
-: port(0), MsgCheckSumStartPos(-1), MsgOutIdx(0),
+: porttype(port_undefined), port(0), usb(0),  MsgCheckSumStartPos(-1), MsgOutIdx(0),
   MsgInPos(0), MsgOutPos(0),
   MsgInStarted(false), MsgOutStarted(false),
   SourceID(0), MsgHandler(0)
@@ -32,11 +32,15 @@ tNMEA0183::tNMEA0183()
   for(int i=0; i < MAX_OUT_BUF;i++) {
     MsgOutBuf[i][0]='\0';
   }
+  for (uint8_t i=0; i < NMEA0183_MAX_FORWARD; i++) {
+	  forwardport[i]=0;
+	  forwardtype[i]=send_raw;
+  }
 }
 
 //*****************************************************************************
 void tNMEA0183::Begin(HardwareSerial *_port, uint8_t _SourceID, unsigned long _baud) {
-	porttype = port_hardware;
+  porttype = port_hardware;
   SourceID=_SourceID;
   port=_port;
   port->begin(_baud);
@@ -48,6 +52,13 @@ void tNMEA0183::Begin(usb_serial_class *_port, uint8_t _SourceID, unsigned long 
 	  usb =_port;
 	  usb->begin(_baud);
 	}
+//*****************************************************************************
+void tNMEA0183::SetForward (tNMEA0183 *_forward, uint8_t _channel, NMEA0183_MsgSendType _forwardtype) {
+	if (_channel >=0 && _channel < NMEA0183_MAX_FORWARD) {
+		forwardport[_channel] = _forward;
+		forwardtype[_channel] = _forwardtype;
+	}
+}
 
 //*****************************************************************************
 void tNMEA0183::ParseMessages() {
@@ -125,6 +136,12 @@ bool tNMEA0183::GetMessage(tNMEA0183Msg &NMEA0183Msg) {
         MsgInPos++;
         if (MsgCheckSumStartPos>0 and MsgCheckSumStartPos+3==MsgInPos) { // We have full checksum and so full message
             MsgInBuf[MsgInPos]=0; // add null termination
+            // see if we need to forward it to other streams
+            for (uint8_t i=0; i < NMEA0183_MAX_FORWARD; i++) {
+            	if (forwardport[i] != 0) {
+            		forwardport[i]->SendMessage(MsgInBuf, forwardtype[i]);
+            	}
+            }
           if (NMEA0183Msg.SetMessage(MsgInBuf)) {
             NMEA0183Msg.SourceID=SourceID;
             result=true;
@@ -176,7 +193,7 @@ void tNMEA0183::kick() {
 }
 
 //*****************************************************************************
-bool tNMEA0183::SendMessage(const char *buf) {
+bool tNMEA0183::SendMessage(const char *buf, NMEA0183_MsgSendType _sendtype) {
 
   if(strlen(buf) >= MAX_NMEA0183_MSG_BUF_LEN)
     return false;
@@ -194,6 +211,14 @@ bool tNMEA0183::SendMessage(const char *buf) {
   }
   if (result==true) {
     strcpy(&MsgOutBuf[bufIdx][0],buf);
+    if (_sendtype == send_crlf) {
+    	int len = strlen (buf);
+    	if (len+2 <= MAX_NMEA0183_MSG_BUF_LEN) {
+    		MsgOutBuf[bufIdx][len] = '\r';
+    		MsgOutBuf[bufIdx][len+1] = '\n';
+    		MsgOutBuf[bufIdx][len+2] = 0;
+    	}
+    }
     kick();
   }
   return result;

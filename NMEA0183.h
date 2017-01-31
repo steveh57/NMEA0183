@@ -28,8 +28,10 @@ Author: Timo Lappalainen
 
 #define MAX_NMEA0183_MSG_BUF_LEN 81  // Accroding to NMEA 3.01. Can not contain multi message as in AIS
 #define MAX_OUT_BUF 3
+#define NMEA0183_MAX_FORWARD 3	//maximum number of forwarding ports supported
 
-enum NMEA0183_PortType {port_hardware, port_usb};
+enum NMEA0183_PortType {port_undefined, port_hardware, port_usb};
+enum NMEA0183_MsgSendType {send_raw, send_crlf};
 
 class tNMEA0183
 {
@@ -37,6 +39,8 @@ class tNMEA0183
 	NMEA0183_PortType porttype;
     HardwareSerial *port;
     usb_serial_class *usb;
+    tNMEA0183 *forwardport[NMEA0183_MAX_FORWARD];
+	NMEA0183_MsgSendType forwardtype[NMEA0183_MAX_FORWARD];
     int MsgCheckSumStartPos;
     char MsgInBuf[MAX_NMEA0183_MSG_BUF_LEN];
     char MsgOutBuf[MAX_OUT_BUF][MAX_NMEA0183_MSG_BUF_LEN];
@@ -55,10 +59,11 @@ class tNMEA0183
     tNMEA0183();
     void Begin(HardwareSerial *_port, uint8_t _SourceID=0, unsigned long _baud=4800);
     void Begin(usb_serial_class *_port, uint8_t _SourceID=0, unsigned long _baud=115200);
+    void SetForward (tNMEA0183 *_forward, uint8_t _channel, NMEA0183_MsgSendType _forwardtype=send_raw);
     void SetMsgHandler(void (*_MsgHandler)(const tNMEA0183Msg &NMEA0183Msg)) {MsgHandler=_MsgHandler;}
     void ParseMessages();
     bool GetMessage(tNMEA0183Msg &NMEA0183Msg);
-    bool SendMessage(const char *buf);
+    bool SendMessage(const char *buf, NMEA0183_MsgSendType _sendtype=send_raw);
     void kick();
   private:
     int serial_available ();

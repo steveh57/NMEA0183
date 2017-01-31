@@ -32,6 +32,8 @@
 #define NMEA0183SourceGPSCompass 3
 #define NMEA0183SourceGPS 1
 
+#define NMEA0183_STREAM Serial
+#define PC_STREAM Serial1
 
 tBoatData BoatData;
 
