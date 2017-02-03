@@ -26,12 +26,18 @@ Author: Timo Lappalainen
 #include <Arduino.h>
 #include <NMEA0183Msg.h>
 
-#define MAX_NMEA0183_MSG_BUF_LEN 81  // Accroding to NMEA 3.01. Can not contain multi message as in AIS
-#define MAX_OUT_BUF 3
+// Definition changed to avoid confusion!
+#define MAX_NMEA0183_MSG_BUF_LEN MAX_NMEA0183_MSG_LEN+2  // Allow space in buffer for terminator
+
+// Number of output buffers required depends on data being streamed.
+// For output at 38400 you may need to increase to 8 or more, particularly
+// if messages are sent in clusters.
+#define MAX_OUT_BUF 8
 #define NMEA0183_MAX_FORWARD 3	//maximum number of forwarding ports supported
 
 enum NMEA0183_PortType {port_undefined, port_hardware, port_usb};
 enum NMEA0183_MsgSendType {send_raw, add_crlf, add_checksum};
+enum NMEA0183status {nmea0183_success, nmea0183_invalid, nmea0183_nobuffers};
 
 class tNMEA0183
 {
@@ -66,7 +72,7 @@ class tNMEA0183
     void ParseMessages();
     bool GetMessage(tNMEA0183Msg &NMEA0183Msg);
     bool SendMessage(const char *buf, NMEA0183_MsgSendType _sendtype=send_raw);
-    bool SendMessage(const tNMEA0183Msg &msg);
+    NMEA0183status SendMessage(const tNMEA0183Msg &msg);
     void kick();
   private:
     int serial_available ();

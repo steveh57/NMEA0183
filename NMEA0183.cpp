@@ -193,7 +193,7 @@ void tNMEA0183::kick() {
 		while(serial_availableForWrite() > 0) {
 			serial_write(MsgOutBuf[MsgOutIdx][MsgOutPos]);
 			MsgOutPos++;
-			if (MsgOutBuf[MsgOutIdx][MsgOutPos] == '\0') {
+			if (MsgOutPos >= MAX_NMEA0183_MSG_BUF_LEN || MsgOutBuf[MsgOutIdx][MsgOutPos] == '\0') {
 				// Done with this message - clear it and prepare for next
 				MsgOutBuf[MsgOutIdx][0] = '\0';
 				MsgOutIdx = nextOutIdx(MsgOutIdx);
@@ -280,10 +280,13 @@ bool tNMEA0183::SendMessage(const char *buf, NMEA0183_MsgSendType _sendtype) {
 *
 */
 
-bool tNMEA0183::SendMessage(const tNMEA0183Msg &msg) {
-	if (msg._FieldCount==0) return false;
-	char buf[MAX_NMEA0183_MSG_BUF_LEN];
-	int i=0, iData=0;
+NMEA0183status tNMEA0183::SendMessage(const tNMEA0183Msg &msg) {
+	if (msg._FieldCount==0) return nmea0183_invalid;  // invalid message
+
+	uint8_t i=0, iData=0;
+
+	char *buf = nextOutBuf();
+	if (buf == 0) return nmea0183_nobuffers;  //no buffers
 
 	buf[i] = msg.Prefix;
 	i++;
@@ -294,28 +297,34 @@ bool tNMEA0183::SendMessage(const tNMEA0183Msg &msg) {
 	}
 	iData++; // skip 0 after sender
 
-	// Set message code. Read until end string.
-	for (; msg.Data[iData]!=0 && iData<MAX_NMEA0183_MSG_LEN; i++, iData++) {
-		buf[i]=msg.Data[iData];
+	// Set message code. 3 characters
+	for (uint8_t j=0; j<3; j++, i++, iData++) {
+			buf[i]=msg.Data[iData];
 	}
-	// Insert comma and add the fields
-	buf[i]=',';
-	i++; iData++;
 
-
-	for (int f = 0; f < msg._FieldCount && i<MAX_NMEA0183_MSG_LEN; i++, iData++) {
-		buf[i]=msg.Data[iData];
-		if (msg.Data[iData]==0) { // end of field
-			f++;
-			buf[i] = f==msg._FieldCount ? 0 : ','; // insert comma or terminate the string
+	for (int f = 0; f < msg._FieldCount; f++){
+		buf[i]=','; i++;  //insert comma before field
+		iData = msg.Fields[f];
+		while (msg.Data[iData]!=0 && i<MAX_NMEA0183_MSG_BUF_LEN) {
+			buf[i]=msg.Data[iData];
+			i++, iData++;
 		}
 	}
 
-	if (i >= MAX_NMEA0183_MSG_LEN) return false;
+	buf[i]='\0'; i++;  //insert string terminator
+
+	if (i+5 >= MAX_NMEA0183_MSG_BUF_LEN) { //allow room for checksum and crlf
+		buf[0] = '\0';  //clear string
+		return nmea0183_invalid;
+	}
+
+	AddChecksum(buf);
+	strcat(buf, "\r\n");
 
 	// Message complete.  Now send it.
+	kick();
 
-	return SendMessage(buf, add_checksum);
+	return nmea0183_success;
 
 }
 
