@@ -22,6 +22,7 @@ Author: Timo Lappalainen
 */
 
 #include <NMEA0183Msg.h>
+#include <NMEA0183.h>
 
 tNMEA0183Msg::tNMEA0183Msg() {
   Clear();
@@ -101,6 +102,9 @@ void tNMEA0183Msg::Clear() {
 //}
 
 //*****************************************************************************
+// DEPRECATED:
+// This version must not be used with NMEA0183 forwarding.  Messages may get
+// mixed up.
 void tNMEA0183Msg::Send(Stream &port) const {
   if (FieldCount()==0) return;
   port.print(Prefix);

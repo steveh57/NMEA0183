@@ -31,7 +31,7 @@ Author: Timo Lappalainen
 #define NMEA0183_MAX_FORWARD 3	//maximum number of forwarding ports supported
 
 enum NMEA0183_PortType {port_undefined, port_hardware, port_usb};
-enum NMEA0183_MsgSendType {send_raw, send_crlf};
+enum NMEA0183_MsgSendType {send_raw, add_crlf, add_checksum};
 
 class tNMEA0183
 {
@@ -40,7 +40,6 @@ class tNMEA0183
     HardwareSerial *port;
     usb_serial_class *usb;
     tNMEA0183 *forwardport[NMEA0183_MAX_FORWARD];
-	NMEA0183_MsgSendType forwardtype[NMEA0183_MAX_FORWARD];
     int MsgCheckSumStartPos;
     char MsgInBuf[MAX_NMEA0183_MSG_BUF_LEN];
     char MsgOutBuf[MAX_OUT_BUF][MAX_NMEA0183_MSG_BUF_LEN];
@@ -59,17 +58,22 @@ class tNMEA0183
     tNMEA0183();
     void Begin(HardwareSerial *_port, uint8_t _SourceID=0, unsigned long _baud=4800);
     void Begin(usb_serial_class *_port, uint8_t _SourceID=0, unsigned long _baud=115200);
-    void SetForward (tNMEA0183 *_forward, uint8_t _channel, NMEA0183_MsgSendType _forwardtype=send_raw);
+    // Use SetForward to define another NMEA0183 stream to forward messages to automatically.
+    // Any NMEA0183 can forward to multiple other streams, including itself.
+    // Only valid messages are forwarded.
+    void SetForward (tNMEA0183 *_forward, uint8_t _channel);
     void SetMsgHandler(void (*_MsgHandler)(const tNMEA0183Msg &NMEA0183Msg)) {MsgHandler=_MsgHandler;}
     void ParseMessages();
     bool GetMessage(tNMEA0183Msg &NMEA0183Msg);
     bool SendMessage(const char *buf, NMEA0183_MsgSendType _sendtype=send_raw);
+    bool SendMessage(const tNMEA0183Msg &msg);
     void kick();
   private:
     int serial_available ();
     int serial_read ();
     int serial_availableForWrite();
     size_t serial_write(int n);
+    char *nextOutBuf();
 
 
 

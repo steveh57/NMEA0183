@@ -48,7 +48,7 @@ class tNMEA0183Msg
     // Print message fields
     //void PrintFields(Stream &port) const;
     // Send message in valid NMEA0183 format
-    void Send(Stream &port) const;
+    void Send(Stream &port) const;  //DEPRECATED
     // Return count of fields on message
     uint8_t FieldCount() const { return _FieldCount; }
     // Return field in null terminated string
@@ -63,6 +63,8 @@ class tNMEA0183Msg
     unsigned long MessageTime() const { return _MessageTime; }
     // Return length of field
     unsigned int FieldLen(uint8_t index) const;
+
+    friend class tNMEA0183;  // Grant acccess to tNMEA0183
 };
 
 #endif
