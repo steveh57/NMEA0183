@@ -73,7 +73,7 @@ class tNMEA0183
     bool GetMessage(tNMEA0183Msg &NMEA0183Msg);
     bool SendMessage(const char *buf, NMEA0183_MsgSendType _sendtype=send_raw);
     NMEA0183status SendMessage(const tNMEA0183Msg &msg);
-    void kick();
+    bool kick();
   private:
     int serial_available ();
     int serial_read ();

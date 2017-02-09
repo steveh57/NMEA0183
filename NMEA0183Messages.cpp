@@ -27,6 +27,7 @@ const double pi=3.1415926535897932384626433832795;
 const double kmhToms=1000.0/3600.0; 
 const double knToms=1852.0/3600.0; 
 const double degToRad=pi/180.0; 
+const double radToDeg=180.0/pi;
 const double msTokmh=3600.0/1000.0;
 const double msTokn=3600.0/1852.0;
 
@@ -60,7 +61,19 @@ double LatLonToDouble(const char *data, const char sign) {
   
   return val;
 }
-
+// Convert N2K format (decimal degrees) to NMEA0183 format double
+// ddmm.mm or dddmm.mm
+double LatLonDegreesToNMEA0183 (double &LatLon) {
+	double dd = floor (LatLon);
+//	return (LatLon-dd)*60 + dd*100;
+	return LatLon*60 + dd*40;
+}
+char LatDegreesToNMEA0183Sign (double &LatLon) {
+	return (LatLon < 0) ? 'S' : 'N';
+}
+char LonDegreesToNMEA0183Sign (double &LatLon) {
+	return (LatLon < 0) ? 'W' : 'E';
+}
 //*****************************************************************************
 double NMEA0183GPTimeToSeconds(const char *data) {
   double val=atof(data);
@@ -70,6 +83,16 @@ double NMEA0183GPTimeToSeconds(const char *data) {
   val=hh*3600+mm*60+(val-hh*10000.0-mm*100);
  
   return val;
+}
+// Convert time_t to NMEA0183 formatted UTC time
+// hhmmss.ss as a string
+void time_tToNMEA0183GPTime (time_t &DateTime, char* GPTime) {
+	sprintf (GPTime, "%06u.00", hour(DateTime)*10000 + minute(DateTime)*100 + second (DateTime));
+}
+// Convert time_t to NMEA0183 formatted date time
+// ddmmyy as a string
+void time_tToNMEA0183GPDate (time_t &DateTime, char* GPDate) {
+	sprintf (GPDate, "%06u", day(DateTime)*10000 + month(DateTime)*100 + (year(DateTime)-2000));
 }
 
 time_t NMEA0183GPSDateTimetotime_t(const char *dateStr, const char *timeStr) {
@@ -153,6 +176,32 @@ bool NMEA0183ParseRMC_nc(const tNMEA0183Msg &NMEA0183Msg, double &GPSTime, doubl
 
   return result;
 }
+
+bool NMEA0183SetRMC ( tNMEA0183Msg &NMEA0183Msg, const char *Source, char &Status, time_t &DateTime, double &Latitude, double &Longitude,
+                      double &TrueCOG, double &SOG, double &Variation, char &FAAMode) {
+	char temp[10];
+	NMEA0183Msg.Init ('$', Source, "RMC");
+	time_tToNMEA0183GPTime (DateTime, temp);
+	NMEA0183Msg.AddField (temp);
+	NMEA0183Msg.AddField (Status);
+	NMEA0183Msg.AddField (LatLonDegreesToNMEA0183(Latitude));
+	NMEA0183Msg.AddField (LatDegreesToNMEA0183Sign(Latitude));
+	NMEA0183Msg.AddField (LatLonDegreesToNMEA0183(Longitude));
+	NMEA0183Msg.AddField (LonDegreesToNMEA0183Sign(Longitude));
+	NMEA0183Msg.AddField ((double)SOG * msTokn);
+	NMEA0183Msg.AddField ((double)TrueCOG * radToDeg);
+	time_tToNMEA0183GPDate (DateTime, temp);
+	NMEA0183Msg.AddField (temp);
+	double val = Variation; char letter = 'E';
+	if (val < 0) {
+		val = -val;
+		letter = 'W';
+	}
+	NMEA0183Msg.AddField ((double)val * radToDeg);
+	NMEA0183Msg.AddField (letter);
+	NMEA0183Msg.AddField (FAAMode);
+	return true;
+}
 //*****************************************************************************
 // $GPVTG,89.34,T,81.84,M,0.00,N,0.01,K*24
 bool NMEA0183ParseVTG_nc(const tNMEA0183Msg &NMEA0183Msg, double &TrueCOG, double &MagneticCOG, double &SOG) {
@@ -170,6 +219,21 @@ bool NMEA0183ParseVTG_nc(const tNMEA0183Msg &NMEA0183Msg, double &TrueCOG, doubl
 
   return result;
 }
+// Field 9 should be FAA Mode character
+
+bool NMEA0183SetVTG(tNMEA0183Msg &NMEA0183Msg, const char *Source, double &TrueCOG, double &MagneticCOG, double &SOG, char FAAMode) {
+	NMEA0183Msg.Init ('$', Source, "VTG");
+	NMEA0183Msg.AddField ((double)TrueCOG * radToDeg);
+	NMEA0183Msg.AddField ('T');
+	NMEA0183Msg.AddField ((double)MagneticCOG * radToDeg);
+	NMEA0183Msg.AddField ('M');
+	NMEA0183Msg.AddField ((double)SOG * msTokn);
+	NMEA0183Msg.AddField ('N');
+	NMEA0183Msg.AddField ((double)SOG * msTokmh);
+	NMEA0183Msg.AddField ('K');
+	NMEA0183Msg.AddField (FAAMode);
+	return true;
+}
 
 //*****************************************************************************
 // Helper to avoid enabling floating point support
@@ -184,7 +248,7 @@ int sprintfDouble2(char* msg, double val)
   if (valFrag < 10) {
 	  return sprintf(msg,"%d.0%d",valInt, valFrag);
   } else {
-	  return sprintf(msg,"%d,%d", valInt, valFrag);
+	  return sprintf(msg,"%d.%d", valInt, valFrag);
   }
 }
 
@@ -222,16 +286,73 @@ bool NMEA0183BuildVTG(char* msg, const char Src[], double TrueCOG, double Magnet
 }
 
 //*****************************************************************************
+// HDT Heading True
 // $HEHDT,244.71,T*1B
 bool NMEA0183ParseHDT_nc(const tNMEA0183Msg &NMEA0183Msg,double &TrueHeading) {
   bool result=( NMEA0183Msg.FieldCount()>=2 );
   if ( result ) {
     TrueHeading=atof(NMEA0183Msg.Field(0))*degToRad;
   }
-
   return result;
 }
-
+bool NMEA0183SetHDT ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &TrueHeading) {
+	NMEA0183Msg.Init ('$', Source, "HDT");
+	NMEA0183Msg.AddField ((double)TrueHeading * radToDeg);
+	NMEA0183Msg.AddField ('T');
+	return true;
+}
+//*****************************************************************************
+// HDM Heading Magnetic
+// $HEHDM,244.71,M*1B
+// not tested sh
+bool NMEA0183ParseHDM_nc(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading) {
+	bool result=( NMEA0183Msg.FieldCount()>=2 );
+	if ( result ) {
+		MagHeading=atof(NMEA0183Msg.Field(0))*degToRad;
+	}
+	return result;
+}
+bool NMEA0183SetHDM ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &MagHeading) {
+	NMEA0183Msg.Init ('$', Source, "HDM");
+	NMEA0183Msg.AddField ((double)MagHeading * radToDeg);
+	NMEA0183Msg.AddField ('M');
+	return true;
+}
+//*****************************************************************************
+// HDG Heading, Deviation and Variation
+// $HCHDG,244.71,1.25,E,3.50,W,T*1B
+// not tested sh
+bool NMEA0183ParseHDG_nc(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading,double &Deviation, double &Variation) {
+	bool result=( NMEA0183Msg.FieldCount()>=5 );
+	if ( result ) {
+		MagHeading=atof(NMEA0183Msg.Field(0))*degToRad;
+		Deviation = atof(NMEA0183Msg.Field(1))*degToRad;
+		if (NMEA0183Msg.Field(2)[0] == 'W') Deviation = -Deviation;
+		Variation = atof(NMEA0183Msg.Field(3))*degToRad;
+		if (NMEA0183Msg.Field(4)[0] == 'W') Variation = -Variation;
+	}
+	return result;
+}
+bool NMEA0183SetHDG ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &MagHeading, const double &Deviation, const double &Variation) {
+	NMEA0183Msg.Init ('$', Source, "HDG");
+	NMEA0183Msg.AddField ((double)MagHeading * radToDeg);
+	char letter = 'E';
+	double val = Deviation;
+	if (val < 0) {
+		val = -val;
+		letter = 'W';
+	};
+	NMEA0183Msg.AddField ((double)val * radToDeg);
+	NMEA0183Msg.AddField (letter);
+	val = Variation;
+	if (val < 0) {
+		val = -val;
+		letter = 'W';
+	} else letter = 'E';
+	NMEA0183Msg.AddField ((double)val * radToDeg);
+	NMEA0183Msg.AddField (letter);
+	return true;
+}
 //*****************************************************************************
 // !AIVDM,1,1,,B,177KQJ5000G?tO`K>RA1wUbN0TKH,0*5C
 // PkgCnt (1)

@@ -68,7 +68,7 @@ void tNMEA0183::ParseMessages() {
 /*Kluge to support USB serial as a NMEA0183 input/output
  *
  * Unfortunately the Stream base class for hardware serial and usb serial does not
- * define AvailableForWriteas a virtual function, so we have to do this to get round
+ * define AvailableForWrite as a virtual function, so we have to do this to get round
  * the problem.  There's probably a more elegant way to do this but hey.
  *
  */
@@ -187,7 +187,8 @@ int tNMEA0183::nextOutIdx(int idx)
 //*****************************************************************************
 // Kick function must be called as often as possible, especially if combining
 // several streams to one output.
-void tNMEA0183::kick() {
+// returns false while still data to send.  true if complete.
+bool tNMEA0183::kick() {
 	if (MsgOutBuf[MsgOutIdx][0] != '\0') {
 		MsgOutStarted = true;
 		while(serial_availableForWrite() > 0) {
@@ -200,11 +201,13 @@ void tNMEA0183::kick() {
 				MsgOutPos=0;
 				if (MsgOutBuf[MsgOutIdx][0] == '\0') {
 					MsgOutStarted=false; //no more messages to send
-					return;
+					return true;
 				};
 			}
 		}
+		return false;
 	}
+	return true;
 }
 //*****************************************************************************
 void AddChecksum(char* msg) {

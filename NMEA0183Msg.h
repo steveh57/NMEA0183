@@ -37,6 +37,7 @@ class tNMEA0183Msg
     uint8_t Fields[MAX_NMEA0183_MSG_FIELDS];
     uint8_t _FieldCount;
     uint8_t CheckSum;
+	uint8_t NextFieldPos;
   public:
     uint8_t SourceID;  // This is used to separate messages e.g. from different ports. Receiver must set this.
   public:
@@ -45,6 +46,11 @@ class tNMEA0183Msg
     bool SetMessage(const char *buf);
     // Clear message
     void Clear();
+	// Init and AddField are used to build a new message ready for sending
+	bool Init(const char _prefix, const char* _sender, const char* _msgtype);
+	bool AddField (const char* _field);
+	bool AddField (const char _field);
+	bool AddField (const double _field);
     // Print message fields
     //void PrintFields(Stream &port) const;
     // Send message in valid NMEA0183 format

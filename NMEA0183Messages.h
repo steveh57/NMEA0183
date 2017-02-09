@@ -49,7 +49,9 @@ inline bool NMEA0183ParseRMC(const tNMEA0183Msg &NMEA0183Msg, double &GPSTime, d
             ?NMEA0183ParseRMC_nc(NMEA0183Msg, GPSTime, Latitude, Longitude, TrueCOG, SOG, DaysSince1970, Variation, DateTime)
             :false);
 }
-                      
+bool NMEA0183SetRMC ( tNMEA0183Msg &NMEA0183Msg, const char *Source, char &Status, time_t &DateTime, double &Latitude, double &Longitude,
+                      double &TrueCOG, double &SOG, double &Variation, char &FAAMode);
+
 // COG will be returned be in radians
 // SOG will be returned in m/s
 bool NMEA0183ParseVTG_nc(const tNMEA0183Msg &NMEA0183Msg, double &TrueCOG, double &MagneticCOG, double &SOG);
@@ -59,10 +61,12 @@ inline bool NMEA0183ParseVTG(const tNMEA0183Msg &NMEA0183Msg, double &TrueCOG, d
             ?NMEA0183ParseVTG_nc(NMEA0183Msg,TrueCOG,MagneticCOG,SOG)
             :false);
 }
+bool NMEA0183SetVTG(tNMEA0183Msg &NMEA0183Msg, const char *Source, double &TrueCOG, double &MagneticCOG, double &SOG, char FAAMode='A');
 
 bool NMEA0183BuildVTG(char* msg, const char Src[], double TrueCOG, double MagneticCOG, double SOG);
 
 // Heading will be returned be in radians
+// HDT - Heading True
 bool NMEA0183ParseHDT_nc(const tNMEA0183Msg &NMEA0183Msg,double &TrueHeading); 
 
 inline bool NMEA0183ParseHDT(const tNMEA0183Msg &NMEA0183Msg, double &TrueHeading) {
@@ -70,6 +74,23 @@ inline bool NMEA0183ParseHDT(const tNMEA0183Msg &NMEA0183Msg, double &TrueHeadin
             ?NMEA0183ParseHDT_nc(NMEA0183Msg,TrueHeading)
             :false);
 }
+bool NMEA0183SetHDT ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &TrueHeading);
+//HDM - Heading Magnetic
+bool NMEA0183ParseHDM_nc(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading);
+inline bool NMEA0183ParseHDM(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading){
+	  return (NMEA0183Msg.IsMessageCode("HDM") ?
+	            NMEA0183ParseHDM_nc(NMEA0183Msg,MagHeading) : false);
+}
+bool NMEA0183SetHDM ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &MagHeading);
+
+//HDG - Heading compass with deviation and variation
+bool NMEA0183ParseHDG_nc(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading,double &Deviation, double &Variation);
+inline bool NMEA0183ParseHDG(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading,double &Deviation, double &Variation) {
+	  return (NMEA0183Msg.IsMessageCode("HDG") ?
+	            NMEA0183ParseHDG_nc(NMEA0183Msg, MagHeading, Deviation, Variation) : false);
+}
+bool NMEA0183SetHDG ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &MagHeading, const double &Deviation,
+		const double &Variation);
 
 
 // VDM is basically a bitstream
