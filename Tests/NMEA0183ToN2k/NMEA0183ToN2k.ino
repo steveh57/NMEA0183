@@ -27,7 +27,11 @@
 #include "NMEA0183Handlers.h"
 #include "BoatData.h"
 
+<<<<<<< HEAD:Tests/NMEA0183ToN2k/NMEA0183ToN2k.ino
 #include <NMEA2000_CAN.h>
+=======
+#include <NMEA2000_CAN.h>  // This will automatically choose right CAN library and create suitable NMEA2000 object
+>>>>>>> refs/remotes/origin/master:Examples/NMEA0183ToN2k/NMEA0183ToN2k.ino
 
 #define NMEA0183SourceGPSCompass 3
 #define NMEA0183SourceGPS 1
