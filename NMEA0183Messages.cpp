@@ -354,6 +354,50 @@ bool NMEA0183SetHDG ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const doubl
 	return true;
 }
 //*****************************************************************************
+// DBS, DBT, DBK Depth below surface/transducer/keel
+// $SDDBT,,f,26.4,M,,F*1B
+// depths can be given in feet, metres and fathoms but in reality most sounders in Europe at least just return metres
+// not tested sh
+
+bool NMEA0183ParseDBX_nc(const tNMEA0183Msg &NMEA0183Msg, double &DepthMetres, eDepthType &DepthType) {
+	bool result=( NMEA0183Msg.FieldCount()>=6 );
+	if ( result ) {
+		switch (NMEA0183Msg.MessageCode()[2]) {
+		case 'S':
+			DepthType = depth_surface; break;
+		case 'T':
+			DepthType = depth_transducer; break;
+		case 'K':
+			DepthType = depth_keel; break;
+		}
+		DepthMetres = atof(NMEA0183Msg.Field(2));
+
+	}
+	return result;
+}
+bool NMEA0183SetDBX ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &DepthMetres, const eDepthType DepthType ) {
+	char *msgcode;
+	switch (DepthType) {
+	case depth_surface:
+		msgcode = "DBS"; break;
+	case depth_transducer:
+		msgcode = "DBT"; break;
+	case depth_keel:
+		msgcode = "DBK"; break;
+	default:
+		return false;
+	}
+	NMEA0183Msg.Init ('$', Source, msgcode);
+	NMEA0183Msg.AddField ("");
+	NMEA0183Msg.AddField ('f');
+	NMEA0183Msg.AddField (DepthMetres);
+	NMEA0183Msg.AddField ('M');
+	NMEA0183Msg.AddField ("");
+	NMEA0183Msg.AddField ('F');
+
+	return true;
+}
+//*****************************************************************************
 // !AIVDM,1,1,,B,177KQJ5000G?tO`K>RA1wUbN0TKH,0*5C
 // PkgCnt (1)
 // PkgNmb (1)

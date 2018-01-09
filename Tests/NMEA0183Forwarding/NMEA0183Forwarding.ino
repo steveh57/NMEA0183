@@ -36,7 +36,7 @@ void setup() {
 
   //Set up low level forwarding
 
-  NMEA0183_s1.SetForward(&NMEA0183_pc, 0);  // Forward all messages received on S1 to PC
+  NMEA0183_s1.SetForward(&NMEA0183_pc);  // Forward all messages received on S1 to PC
 
 }
 

@@ -67,7 +67,7 @@ class tNMEA0183
     // Use SetForward to define another NMEA0183 stream to forward messages to automatically.
     // Any NMEA0183 can forward to multiple other streams, including itself.
     // Only valid messages are forwarded.
-    void SetForward (tNMEA0183 *_forward, uint8_t _channel);
+    bool SetForward (tNMEA0183 *_forward);
     void SetMsgHandler(void (*_MsgHandler)(const tNMEA0183Msg &NMEA0183Msg)) {MsgHandler=_MsgHandler;}
     void ParseMessages();
     bool GetMessage(tNMEA0183Msg &NMEA0183Msg);

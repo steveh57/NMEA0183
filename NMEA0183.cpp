@@ -52,10 +52,14 @@ void tNMEA0183::Begin(usb_serial_class *_port, uint8_t _SourceID, unsigned long 
 	  usb->begin(_baud);
 	}
 //*****************************************************************************
-void tNMEA0183::SetForward (tNMEA0183 *_forward, uint8_t _channel) {
-	if (_channel >=0 && _channel < NMEA0183_MAX_FORWARD) {
-		forwardport[_channel] = _forward;
+bool tNMEA0183::SetForward (tNMEA0183 *_forward) {
+	uint8_t i = 0;
+	while (i < NMEA0183_MAX_FORWARD && forwardport[i]!=0) i++;
+	if (i < NMEA0183_MAX_FORWARD) {
+		forwardport[i] = _forward;
+		return true;
 	}
+	return false;
 }
 
 //*****************************************************************************

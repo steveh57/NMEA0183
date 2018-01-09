@@ -92,6 +92,27 @@ inline bool NMEA0183ParseHDG(const tNMEA0183Msg &NMEA0183Msg,double &MagHeading,
 bool NMEA0183SetHDG ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &MagHeading, const double &Deviation,
 		const double &Variation);
 
+// DBS, DBT, DBK Depth below surface/transducer/keel
+enum eDepthType {depth_na, depth_surface, depth_keel, depth_transducer};
+bool NMEA0183ParseDBX_nc(const tNMEA0183Msg &NMEA0183Msg, double &DepthMetres, eDepthType &DepthType);
+
+inline bool NMEA0183ParseDBT(const tNMEA0183Msg &NMEA0183Msg,double &DepthMetres) {
+	eDepthType dt;
+	return ( NMEA0183Msg.IsMessageCode("DBT") ?
+			NMEA0183ParseDBX_nc(NMEA0183Msg, DepthMetres, dt) : false);
+}
+inline bool NMEA0183ParseDBS(const tNMEA0183Msg &NMEA0183Msg,double &DepthMetres) {
+	eDepthType dt;
+	return ( NMEA0183Msg.IsMessageCode("DBS") ?
+			NMEA0183ParseDBX_nc(NMEA0183Msg, DepthMetres, dt) : false);
+}
+inline bool NMEA0183ParseDBK(const tNMEA0183Msg &NMEA0183Msg,double &DepthMetres) {
+	eDepthType dt;
+	return ( NMEA0183Msg.IsMessageCode("DBK") ?
+			NMEA0183ParseDBX_nc(NMEA0183Msg, DepthMetres, dt) : false);
+}
+
+bool NMEA0183SetDBX ( tNMEA0183Msg &NMEA0183Msg, const char *Source, const double &DepthMetres, const eDepthType DepthType );
 
 // VDM is basically a bitstream
 bool NMEA0183ParseVDM_nc(const tNMEA0183Msg &NMEA0183Msg,
